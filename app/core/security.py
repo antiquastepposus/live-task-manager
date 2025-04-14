@@ -1,6 +1,6 @@
 from app.core.config import settings
 from . import (CryptContext, OAuth2PasswordBearer, timedelta, datetime, timezone, Depends,
-               jwt)
+               jwt, UserUnitOfWork, HTTPException, status)
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
@@ -22,8 +22,31 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(token: str = Depends(oauth_scheme2)):
+async def get_current_user(token: str = Depends(oauth_scheme2), uow: UserUnitOfWork = Depends()):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
-        if username is None or 
+
+        user = await uow.repos.find_by_username(username)
+
+        if not username or not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Could not validate credentials"
+            )
+        
+        return user
+            
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, 
+        detail="Could not validate credentials"
+        )
+    
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Token expired"
+            )
+
+         
