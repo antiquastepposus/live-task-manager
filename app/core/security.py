@@ -1,6 +1,8 @@
 from app.core.config import settings
-from . import (CryptContext, OAuth2PasswordBearer, timedelta, datetime, timezone, Depends,
-               jwt, UserUnitOfWork, HTTPException, status)
+from . import (
+    CryptContext, OAuth2PasswordBearer, timedelta, datetime, timezone, Depends,
+    jwt, UserUnitOfWork, HTTPException, status
+    )
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM

@@ -3,3 +3,6 @@ class TaskNotFoundError(Exception):
 
 class UserNotFoundError(Exception):
     pass
+
+class WrongCredentialsError(Exception):
+    pass
