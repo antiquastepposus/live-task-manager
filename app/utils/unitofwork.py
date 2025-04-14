@@ -48,7 +48,7 @@ class UserUnitOfWork(UnitOfWork):
         self.repos = UserRepository(self.session)
 
 class TaskUnitOfWork(UnitOfWork):
-    model: TaskRepository
+    repos: TaskRepository
 
     async def __aenter__(self):
         self.session = self.session_factory()
