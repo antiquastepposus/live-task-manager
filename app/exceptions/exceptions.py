@@ -9,3 +9,6 @@ class WrongCredentialsError(Exception):
 
 class UsernameAlreadyExists(Exception):
     pass
+
+class AccessDeniedError(Exception):
+    pass

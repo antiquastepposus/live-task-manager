@@ -1,51 +1,74 @@
-from . import TaskUnitOfWork, TaskCreate, TaskFromDB, TaskNotFoundError
+from app.api.schemas.task import TaskCreate, TaskFromDB
+from app.exceptions.exceptions import AccessDeniedError, TaskNotFoundError
+from app.utils.unitofwork import TaskUnitOfWork
+
 
 class TaskService:
     def __init__(self, uow: TaskUnitOfWork): 
         self.uow = uow
 
-    async def find_all(self) -> list[TaskFromDB]:
+    async def find_all(self, user: dict) -> list[TaskFromDB]:
         async with self.uow:
-            tasks: list = await self.uow.repos.find_all()
+            tasks: list = await self.uow.repos.find_all(user)
             return [TaskFromDB.model_validate(task) for task in tasks]
 
-    async def find_one(self, id: int) -> TaskFromDB:
+    async def find_one(self, id: int, user: dict) -> TaskFromDB:
         async with self.uow:
             task: TaskFromDB = await self.uow.repos.find_one(id)
+
             if task:
-                return task
+                if task.created_by == user.id:
+                    return TaskFromDB.model_validate(task)
+                
+                raise AccessDeniedError()
+            
             raise TaskNotFoundError()
 
-    async def add(self, task: TaskCreate) -> TaskFromDB:
+    async def add(self, task: TaskCreate, user: dict) -> TaskFromDB:
         task_dict: dict = task.model_dump()
+        task_dict["created_by"] = user.id
 
         async with self.uow:
             task_from_db = await self.uow.repos.add(task_dict)
+
             task_to_return = TaskFromDB.model_validate(task_from_db)
 
             await self.uow.commit()
 
             return task_to_return            
         
-    async def update(self, id: int, task: TaskCreate) -> TaskFromDB:
+    async def update(self, id: int, task: TaskCreate, user: dict) -> TaskFromDB:
         task_dict: dict = task.model_dump()
 
         async with self.uow:
-            task_from_db = await self.uow.repos.update(id, task)
+            task = await self.uow.repos.find_one(id)
+            if task:
+                if task.created_by == user.id:
+                    
+                    task_from_db = await self.uow.repos.update(id, task_dict)
 
-            if task_from_db:
-                task_to_return = TaskFromDB.model_validate(task_from_db)
+                    task_to_return = TaskFromDB.model_validate(task_from_db)
 
-                await self.uow.commit()
-                return task_to_return
-            
+                    await self.uow.commit()
+                    return task_to_return
+                    
+                raise AccessDeniedError()
+                
             raise TaskNotFoundError()
+            
 
-    async def delete(self, id: int) -> bool:
+    async def delete(self, id: int, user: dict) -> bool:
         async with self.uow:
-            result = await self.uow.repos.delete(id)
+            task: TaskFromDB = await self.uow.repos.find_one(id)
+
+            if task:
+                if task.created_by == user.id:
+
+                    result = await self.uow.repos.delete(id)
+                    await self.uow.commit()
+                    
+                    return result
+                    
+                raise AccessDeniedError()
             
-            if result:
-                return result
             raise TaskNotFoundError()
-        

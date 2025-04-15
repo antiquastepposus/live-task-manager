@@ -1,8 +1,13 @@
-from . import (
-            APIRouter, UserCreate, UserService, Depends, get_user_service, UserNotFoundError,
-            WrongCredentialsError, HTTPException, status, UsernameAlreadyExists,
-            OAuth2PasswordRequestForm
-    )
+from datetime import timedelta
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+
+from app.api.schemas.user import UserCreate
+from app.core.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_password_hash, verify_password
+from app.dependencies.dependencies import get_user_service
+from app.exceptions.exceptions import UsernameAlreadyExists
+from app.services.user_service import UserService
+
 
 users_router = APIRouter(
     prefix="/users",
@@ -12,6 +17,9 @@ users_router = APIRouter(
 @users_router.post("/sign_up")
 async def sign_up(user: UserCreate, user_service: UserService = Depends(get_user_service)):
     try: 
+        user = {"username": user.username, "password": get_password_hash(user.password)}
+        user = UserCreate(**user)
+
         if await user_service.add(user):
             return {"success": "User was created"} 
     
@@ -20,18 +28,26 @@ async def sign_up(user: UserCreate, user_service: UserService = Depends(get_user
 
 
 @users_router.post("/login")
-async def login(user_service: UserService = Depends(get_user_service),  form_data: OAuth2PasswordRequestForm = Depends()):
-    try: 
-        token = await user_service.login(form_data)
+async def login(user_service: UserService = Depends(get_user_service), form_data: OAuth2PasswordRequestForm = Depends()):
+    try:
+        user = await user_service.find_by_username(form_data.username)
         
-        return {
-            "access_token": token,
-            "token_type": "bearer"
-        }
+        if user:
+            if verify_password(form_data.password, user.password):
+                access_token = create_access_token(
+                    data={"sub": form_data.username},
+                    expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                )
 
-    except WrongCredentialsError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong credentials")
-
-    except UserNotFoundError:    
+                return {
+                    "access_token": access_token,
+                    "token_type": "bearer"
+                }
+            
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong credentials")
+        
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-
+    
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error: {e}")
+    

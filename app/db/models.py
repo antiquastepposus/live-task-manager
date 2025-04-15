@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import BigInteger, DateTime, String, func
+from sqlalchemy import BigInteger, DateTime, String, func, ForeignKey
 from . import Mapped, mapped_column
 from app.db.database import Base
 
@@ -20,3 +20,5 @@ class Task(Base):
     completed: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, 
                                     server_default=func.now())
+    
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)

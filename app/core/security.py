@@ -1,8 +1,11 @@
+from datetime import datetime, timedelta, timezone
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from app.core.config import settings
-from . import (
-    CryptContext, OAuth2PasswordBearer, timedelta, datetime, timezone, Depends,
-    jwt, UserUnitOfWork, HTTPException, status
-    )
+from passlib.context import CryptContext
+import jwt
+from app.dependencies.dependencies import get_user_service
+from app.services.user_service import UserService
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
@@ -24,12 +27,12 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(token: str = Depends(oauth_scheme2), uow: UserUnitOfWork = Depends()):
+async def get_current_user(token: str = Depends(oauth_scheme2), user_service: UserService = Depends(get_user_service)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
 
-        user = await uow.repos.find_by_username(username)
+        user = await user_service.find_by_username(username)
 
         if not username or not user:
             raise HTTPException(
