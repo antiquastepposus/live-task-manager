@@ -5,6 +5,7 @@ from app.core.security import get_current_user
 from app.dependencies.dependencies import get_task_service
 from app.exceptions.exceptions import AccessDeniedError, TaskNotFoundError
 from app.services.task_service import TaskService
+from app.api.endpoints.websocket import manager
 
 
 tasks_router = APIRouter(
@@ -40,6 +41,9 @@ async def add_task(
 
     try: 
         task = await task_service.add(task, current_user)
+        
+        await manager.broadcast(f"\nДобавилась задача: {task.model_dump()}")
+        
         return task
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error: {e}")
@@ -53,7 +57,11 @@ async def update_task(
     current_user: dict = Depends(get_current_user)
     ):
     try:
-        return await task_service.update(task=task, id=task_id, user=current_user)
+        task = await task_service.update(task=task, id=task_id, user=current_user)
+        
+        await manager.broadcast(f"\nОбновилась задача: {task.model_dump()}")
+        
+        return task
 
     except TaskNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Not found")
@@ -70,6 +78,9 @@ async def delete_task(
 
     try: 
         result = await task_service.delete(task_id, current_user)
+
+        await manager.broadcast(f"\nУдалили задачу с номером: {task_id}")
+
         return {"success": result}
 
     except TaskNotFoundError:
