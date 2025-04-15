@@ -1,9 +1,11 @@
-from base_repository import Repository
-from . import User
+from app.repositories.base_repository import Repository
+from . import User, select
 
 class UserRepository(Repository):
     model = User
 
     async def find_by_username(self, username: str):
-        return self.session.query(self.model).filter(self.model.username == username).first()
+        stmt = select(self.model).filter(self.model.username == username)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
     

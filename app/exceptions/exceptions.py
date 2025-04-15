@@ -6,3 +6,6 @@ class UserNotFoundError(Exception):
 
 class WrongCredentialsError(Exception):
     pass
+
+class UsernameAlreadyExists(Exception):
+    pass

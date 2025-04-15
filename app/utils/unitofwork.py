@@ -1,4 +1,8 @@
-from . import Repository, ABC, abstractmethod, async_session_maker, UserRepository, TaskRepository
+from app.repositories.task_repository import TaskRepository
+from app.repositories.user_repository import UserRepository
+from . import ABC, abstractmethod
+from app.repositories.base_repository import Repository
+from app.db.database import async_session_maker
 
 class AbstractUnitOfWork(ABC):
     @abstractmethod

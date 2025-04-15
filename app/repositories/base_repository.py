@@ -38,9 +38,10 @@ class Repository(AbstractRepository):
         return self.session.query(self.model).filter(self.model.id == id).first()
     
     async def add(self, data: dict):
-        obj = self.model(**data)
-        self.session.add(obj)
-        return obj
+        stmt = insert(self.model).values(**data).returning(self.model)
+        result = await self.session.execute(stmt)
+
+        return result.scalar_one()
     
     async def update(self, id: int, data: dict):
         obj = self.find_one(id)

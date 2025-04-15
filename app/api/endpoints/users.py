@@ -1,6 +1,7 @@
 from . import (
             APIRouter, UserCreate, UserService, Depends, get_user_service, UserNotFoundError,
-            WrongCredentialsError, HTTPException, status
+            WrongCredentialsError, HTTPException, status, UsernameAlreadyExists,
+            OAuth2PasswordRequestForm
     )
 
 users_router = APIRouter(
@@ -11,15 +12,17 @@ users_router = APIRouter(
 @users_router.post("/sign_up")
 async def sign_up(user: UserCreate, user_service: UserService = Depends(get_user_service)):
     try: 
-        return await user_service.add(user)
+        if await user_service.add(user):
+            return {"success": "User was created"} 
     
-    except UserNotFoundError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    except UsernameAlreadyExists:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username is already taken")
+
 
 @users_router.post("/login")
-async def login(user: UserCreate, user_service: UserService = Depends(get_user_service)):
+async def login(user_service: UserService = Depends(get_user_service),  form_data: OAuth2PasswordRequestForm = Depends()):
     try: 
-        token = await user_service.login(user)
+        token = await user_service.login(form_data)
         
         return {
             "access_token": token,

@@ -1,4 +1,4 @@
-from base_repository import Repository
+from app.repositories.base_repository import Repository
 from . import Task
 
 class TaskRepository(Repository):

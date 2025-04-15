@@ -1,7 +1,7 @@
 from . import (
     UserUnitOfWork, UserCreate, UserFromDB, UserNotFoundError, get_password_hash,
     verify_password, create_access_token, timedelta, ACCESS_TOKEN_EXPIRE_MINUTES,
-    WrongCredentialsError
+    WrongCredentialsError, UsernameAlreadyExists
     )
 
 class UserService:
@@ -25,18 +25,21 @@ class UserService:
             user: UserFromDB = await self.uow.repos.find_by_username(username)
             if user:
                 return user
-            raise UserNotFoundError()
+            return None
 
     async def add(self, user: UserCreate) -> UserFromDB:
-        user_dict = {"username": user.username, "password": get_password_hash(user.password)}
+        if not await self.find_by_username(user.username):
+            async with self.uow:
+                user_dict = {"username": user.username, "password": get_password_hash(user.password)}
 
-        async with self.uow:
-            user_from_db = await self.uow.repos.add(user_dict)
-            user_to_return = UserFromDB.model_validate(user_from_db)
+                user_from_db = await self.uow.repos.add(user_dict)
+                user_to_return = UserFromDB.model_validate(user_from_db)
 
-            await self.uow.commit()
+                await self.uow.commit()
 
-            return user_to_return            
+                return True
+
+        raise UsernameAlreadyExists()
         
     async def update(self, id: int, user: UserCreate) -> UserFromDB:
         user_dict: dict = user.model_dump()
@@ -61,15 +64,18 @@ class UserService:
             raise UserNotFoundError()
         
     async def login(self, user_in: UserCreate):
-        user = await self.find_by_username(user_in.username)
+        async with self.uow:
+            user: UserFromDB = await self.uow.repos.find_by_username(user_in.username)
+            if user: 
 
-        if verify_password(user_in.password, user.password):
-            access_token = create_access_token(
-                data={"sub": user.get("username")},
-                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            )
+                if verify_password(user_in.password, user.password):
+                    access_token = create_access_token(
+                        data={"sub": user_in.username},
+                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                    )
 
-            return access_token
-        
-        raise WrongCredentialsError()
-
+                    return access_token
+                
+                raise WrongCredentialsError()
+            
+            raise UserNotFoundError()
