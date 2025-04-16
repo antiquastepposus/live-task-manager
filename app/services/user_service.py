@@ -1,28 +1,28 @@
 from datetime import timedelta
 from app.api.schemas.user import UserCreate, UserFromDB
 from app.exceptions.exceptions import UserNotFoundError, UsernameAlreadyExists, WrongCredentialsError
-from app.utils.unitofwork import UserUnitOfWork
+from app.utils.unitofwork import UnitOfWork
 
 
 class UserService:
-    def __init__(self, uow: UserUnitOfWork): 
+    def __init__(self, uow: UnitOfWork): 
         self.uow = uow
 
     async def find_all(self) -> list[UserFromDB]:
         async with self.uow:
-            users: list = await self.uow.repos.find_all()
+            users: list = await self.uow.users.find_all()
             return [UserFromDB.model_validate(user) for user in users]
 
     async def find_one(self, id: int) -> UserFromDB:
         async with self.uow:
-            user: UserFromDB = await self.uow.repos.find_one(id)
+            user: UserFromDB = await self.uow.users.find_one(id)
             if user:
                 return user
             raise UserNotFoundError()
         
     async def find_by_username(self, username: str) -> UserFromDB:
         async with self.uow:
-            user: UserFromDB = await self.uow.repos.find_by_username(username)
+            user: UserFromDB = await self.uow.users.find_by_username(username)
             if user:
                 return UserFromDB.model_validate(user)
             return None
@@ -32,7 +32,7 @@ class UserService:
             async with self.uow:
                 user_dict = {"username": user.username, "password": user.password}
 
-                user_from_db = await self.uow.repos.add(user_dict)
+                user_from_db = await self.uow.users.add(user_dict)
                 user_to_return = UserFromDB.model_validate(user_from_db)
 
                 await self.uow.commit()
@@ -45,7 +45,7 @@ class UserService:
         user_dict: dict = user.model_dump()
 
         async with self.uow:
-            user_from_db = await self.uow.repos.update(id, user)
+            user_from_db = await self.uow.users.update(id, user)
 
             if user_from_db:
                 user_to_return = UserFromDB.model_validate(user_from_db)
@@ -57,7 +57,7 @@ class UserService:
 
     async def delete(self, id: int) -> bool:
         async with self.uow:
-            result = await self.uow.repos.delete(id)
+            result = await self.uow.users.delete(id)
             
             if result:
                 return result

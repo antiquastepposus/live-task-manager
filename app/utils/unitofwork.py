@@ -22,16 +22,14 @@ class AbstractUnitOfWork(ABC):
         raise NotImplementedError
 
 class UnitOfWork(AbstractUnitOfWork):
-    repos: Repository
-
     def __init__(self):
         self.session_factory = async_session_maker
 
-    @abstractmethod
     async def __aenter__(self):
         self.session = self.session_factory()
-
-        self.repos = Repository(self.session)
+        self.users = UserRepository(self.session)
+        self.tasks = TaskRepository(self.session)
+        return self
 
     async def __aexit__(self, *args):
         await self.rollback()
@@ -42,19 +40,3 @@ class UnitOfWork(AbstractUnitOfWork):
 
     async def rollback(self):
         await self.session.rollback()
-
-class UserUnitOfWork(UnitOfWork):
-    repos: UserRepository
-
-    async def __aenter__(self):
-        self.session = self.session_factory()
-
-        self.repos = UserRepository(self.session)
-
-class TaskUnitOfWork(UnitOfWork):
-    repos: TaskRepository
-
-    async def __aenter__(self):
-        self.session = self.session_factory()
-        
-        self.repos = TaskRepository(self.session)

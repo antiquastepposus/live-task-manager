@@ -1,7 +1,7 @@
-from . import UserService, UserUnitOfWork, TaskService, TaskUnitOfWork
+from . import UserService, UnitOfWork, TaskService, UnitOfWork
 
 async def get_user_service() -> UserService:
-    return UserService(uow=UserUnitOfWork())
+    return UserService(uow=UnitOfWork())
 
 async def get_task_service() -> TaskService:
-    return TaskService(uow=TaskUnitOfWork())
+    return TaskService(uow=UnitOfWork())
